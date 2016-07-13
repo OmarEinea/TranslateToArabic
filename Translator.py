@@ -1,8 +1,9 @@
+from selenium.common.exceptions import NoSuchElementException, TimeoutException, ElementNotVisibleException
+from selenium.webdriver.support import expected_conditions as ec
+from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver import PhantomJS, Chrome
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as ec
-from selenium.common.exceptions import NoSuchElementException, TimeoutException, ElementNotVisibleException
+from selenium.webdriver.common.keys import Keys
 from microsofttranslator import Translator as MicrosoftTranslator
 from requests.exceptions import ConnectionError
 from urllib.parse import quote
@@ -21,13 +22,17 @@ class Translator:
     def __translate(self, string):
         for i in range(3):
             try:
-                return self._translate(string)
-            except AttributeError:
+                return self._translate(string.replace("\\", ''))
+            except AttributeError as e:
+                print(e)
                 time.sleep(2)
             except (ConnectionError, TimeoutException, NoSuchElementException) as e: print(e)
         raise ConnectionAbortedError
 
     def _translate(self, string):
+        pass
+
+    def close(self):
         pass
 
     def execution_time(self):
@@ -66,26 +71,40 @@ class Bing(Translator):
         return self.__tr.translate(string, "ar")
 
 
-class Systran(Translator):
-    def __init__(self):
-        self._br = Chrome("./chromedriver")
+class Selenium:
+    def __init__(self, browser):
+        if browser == "chrome":
+            self._br = Chrome("./chromedriver")
+        elif browser == "phantom":
+            self._br = PhantomJS("./phantomjs")
         self._br.set_page_load_timeout(15)
 
-    def _translate(self, string):
+    def close(self):
+        self._br.close()
+
+
+class Systran(Selenium, Translator):
+    def __init__(self):
+        Selenium.__init__(self, "chrome")
         self._br.get("http://www.systranet.com/translate")
         self._br.find_element_by_xpath("//select[@id='src_lang']/option[@value='en']").click()
         self._br.find_element_by_xpath("//select[@id='tgt_lang']/option[@value='ar']").click()
-        self._br.find_element_by_id("edit_src").send_keys(string)
+
+    def _translate(self, string):
+        self._br.switch_to.default_content()
+        source = self._br.find_element_by_id("edit_src")
+        source.send_keys(Keys.CONTROL + "a")
+        source.send_keys(Keys.DELETE)
+        source.send_keys(string)
         self._br.find_element_by_id("tb_tr_btn").click()
         WebDriverWait(self._br, 10).until(ec.invisibility_of_element_located((By.ID, "processing")))
         self._br.switch_to.frame("edit_tgt")
-        return self._br.find_element_by_class_name("systran_seg").text
+        return self._br.find_element_by_id("tgt").text
 
 
-class FreeTranslations(Translator):
+class FreeTranslations(Selenium, Translator):
     def __init__(self):
-        self._br = PhantomJS("./phantomjs")
-        self._br.set_page_load_timeout(15)
+        Selenium.__init__(self, "phantom")
 
     def _translate(self, string):
         self._br.get("https://www.freetranslations.org/english-to-arabic-translation.html")
@@ -95,10 +114,9 @@ class FreeTranslations(Translator):
         return self._br.find_element_by_xpath("//*[@id='TranslationOutput']/div").get_attribute("innerHTML")
 
 
-class Babylon(Translator):
+class Babylon(Selenium, Translator):
     def __init__(self):
-        self._br = PhantomJS("./phantomjs")
-        self._br.set_page_load_timeout(15)
+        Selenium.__init__(self, "phantom")
 
     def _translate(self, string):
         self._br.get("http://translation.babylon-software.com/english/to-arabic/")
