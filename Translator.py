@@ -1,4 +1,4 @@
-from selenium.common.exceptions import NoSuchElementException, TimeoutException, ElementNotVisibleException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver import PhantomJS, Chrome
@@ -39,28 +39,18 @@ class Translator:
         return time.time() - self._start_time
 
 
-class Frengly(Translator):
-    def _translate(self, string):
-        r = requests.get("http://frengly.com/?src=en&dest=ar&email=eineao@ymail.com&password=translate&text=" + quote(string))
-        soup = BeautifulSoup(r.text, "lxml").translation.get_text()
-        return soup
-
-
-class BabelFish(Translator):
-    def _translate(self, string):
-        r = requests.get("http://www.babelfish.fr/dict?src=en&dst=ar&query=" + quote(string))
-        r.encoding = "UTF-8"
-        return BeautifulSoup(r.text, "lxml").find(class_="source_url_spacer").previous_sibling.strip()
-
-
-class SLD(Translator):
-    def _translate(self, string):
-        headers = {
+class SDL(Translator):
+    def __init__(self):
+        self.url = "https://lc-api.sdl.com/translate"
+        self.headers = {
             "Content-type": "application/json",
             "Authorization": "LC apiKey=4lzNWfvaFHpwiaNRNrhSaA%3D%3D",
         }
-        data = '{"text": "' + string + '", "from": "eng", "to": "ara"}'
-        return requests.post("https://lc-api.sdl.com/translate", headers=headers, data=data).json()["translation"]
+        self.data = '{"text": "%s", "from": "eng", "to": "ara"}'
+
+    def _translate(self, string):
+        return requests.post(self.url, self.data % string.replace('"', '').replace('%', ''),
+                             headers = self.headers).json()["translation"] if string.strip() != '' else ''
 
 
 class Bing(Translator):
@@ -79,6 +69,12 @@ class Selenium:
             self._br = PhantomJS("./phantomjs")
         self._br.set_page_load_timeout(15)
 
+    @staticmethod
+    def _insert_string(source, string):
+        source.send_keys(Keys.CONTROL + "a")
+        source.send_keys(Keys.DELETE)
+        source.send_keys(string)
+
     def close(self):
         self._br.close()
 
@@ -92,10 +88,7 @@ class Systran(Selenium, Translator):
 
     def _translate(self, string):
         self._br.switch_to.default_content()
-        source = self._br.find_element_by_id("edit_src")
-        source.send_keys(Keys.CONTROL + "a")
-        source.send_keys(Keys.DELETE)
-        source.send_keys(string)
+        self._insert_string(self._br.find_element_by_id("edit_src"), string)
         self._br.find_element_by_id("tb_tr_btn").click()
         WebDriverWait(self._br, 10).until(ec.invisibility_of_element_located((By.ID, "processing")))
         self._br.switch_to.frame("edit_tgt")
@@ -105,25 +98,46 @@ class Systran(Selenium, Translator):
 class FreeTranslations(Selenium, Translator):
     def __init__(self):
         Selenium.__init__(self, "phantom")
+        self._br.get("https://www.freetranslations.org/english-to-arabic-translation.html")
 
     def _translate(self, string):
-        self._br.get("https://www.freetranslations.org/english-to-arabic-translation.html")
-        self._br.find_element_by_id("InputText").send_keys(string)
+        self._insert_string(self._br.find_element_by_id("InputText"), string)
         self._br.find_element_by_class_name("translate-form-control").click()
         WebDriverWait(self._br, 10).until(ec.presence_of_element_located((By.CLASS_NAME, "mttextarea")))
-        return self._br.find_element_by_xpath("//*[@id='TranslationOutput']/div").get_attribute("innerHTML")
+        return self._br.find_element_by_xpath("//*[@id='TranslationOutput']/div").text
 
 
 class Babylon(Selenium, Translator):
     def __init__(self):
         Selenium.__init__(self, "phantom")
+        self._br.get("http://translation.babylon-software.com/english/to-arabic/")
+        self._br.find_element_by_class_name("popup-closeButton").click()
+        WebDriverWait(self._br, 10).until(ec.invisibility_of_element_located((By.ID, "popup-wrapper")))
 
     def _translate(self, string):
-        self._br.get("http://translation.babylon-software.com/english/to-arabic/")
-        try:
-            self._br.find_element_by_class_name("popup-closeButton").click()
-            WebDriverWait(self._br, 10).until(ec.invisibility_of_element_located((By.ID, "popup-wrapper")))
-        except ElementNotVisibleException: pass
-        self._br.find_element_by_id("translationSourceTextarea").send_keys(string.replace("'", ""))
+        self._insert_string(self._br.find_element_by_id("translationSourceTextarea"), string.replace("'", ""))
         self._br.find_element_by_id("btnTranslate").click()
-        return self._br.find_element_by_id("resltext").get_attribute("innerHTML")
+        return self._br.find_element_by_id("resltext").text.replace('\n', ' ')
+
+
+# >>> Below are currently not working <<<
+# Needs a premium key!
+class Frengly(Translator):
+    def _translate(self, string):
+        r = requests.get("http://frengly.com/?src=en&dest=ar&email=eineao@ymail.com&password=translate&text=" + quote(string))
+        return BeautifulSoup(r.text, "lxml").translation.get_text()
+
+
+# Not working properly
+class BabelFish(Selenium, Translator):
+    def __init__(self):
+        Selenium.__init__(self, "chrome")
+        self._br.get("http://www.babelfish.fr/dict?src=en&dst=ar&query=+")
+
+    def _translate(self, string):
+        result = ''
+        for substring in [string[i:i + 999] for i in range(0, len(string), 999)]:
+            self._insert_string(self._br.find_element_by_id("txtSource"), substring)
+            self._br.find_element_by_class_name("submit").click()
+            result += self._br.find_element_by_class_name("row_first").text
+        return result.replace('\n', ' ')
