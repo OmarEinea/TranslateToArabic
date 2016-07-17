@@ -1,27 +1,30 @@
-from Translator import *
-import codecs
-import csv
+from Translator import FreeTranslations
+import codecs, csv, sys, os
 
-count = 0
+number = str(sys.argv[1]) if len(sys.argv) > 1 else '1'
+user_en, user_ar = None, None
+tr = FreeTranslations()
+translate = tr.translate
+done = 0
 
-tr = Systran()
-file = csv.reader(open("amazon_baby.csv", "r"))
-output = csv.writer(codecs.open("amazon_baby_systran.csv", "w", "utf-8"))
+if os.path.exists("amazon_baby_arabic%s.csv" % number):
+    output = open("amazon_baby_arabic%s.csv" % number)
+    done = len(output.readlines())
+    output.close()
 
-translated = {}
+output = codecs.open("amazon_baby_arabic%s.csv" % number, "a+", "utf-8").write
+input_ = csv.reader(open("amazon_baby%s.csv" % number))
 
-for line in file:
-    if line[0] in translated:
-        name = translated[line[0]]
-    else:
-        name = tr.translate(line[0])
-        translated[line[0]] = name
-    review = tr.translate(line[1])
+for i in range(done): input_.__next__()
+
+for line in input_:
+    if line[0] != user_en:
+        user_en = line[0]
+        user_ar = translate(user_en)
+    name = user_ar
+    review = translate(line[1])
     print(("Name: " + name + "\tReview: " + review)[:150])
-    output.writerow([name, review, line[2]])
-    count += len(line[0]) + len(line[1])
-    if count > 100000:
-        print("Time: " + str(tr.execution_time()))
-        break
+    output(name + '\t' + review + '\t' + line[2] + '\n')
 
+print("Time: %d" % tr.execution_time())
 tr.close()
