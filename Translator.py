@@ -26,7 +26,10 @@ class Translator:
             except AttributeError as e:
                 print(e)
                 time.sleep(2)
-            except (ConnectionError, TimeoutException, NoSuchElementException) as e: print(e)
+            except TimeoutException as e:
+                print(e)
+                string = string.replace("...", ' ')
+            except (ConnectionError, NoSuchElementException) as e: print(e)
         raise ConnectionAbortedError
 
     def _translate(self, string):
@@ -36,7 +39,8 @@ class Translator:
         pass
 
     def execution_time(self):
-        return time.time() - self._start_time
+        if self._start_time:
+            return time.time() - self._start_time
 
 
 class SDL(Translator):
@@ -96,8 +100,8 @@ class Systran(Selenium, Translator):
 
 
 class FreeTranslations(Selenium, Translator):
-    def __init__(self):
-        Selenium.__init__(self, "phantom")
+    def __init__(self, browser="phantom"):
+        Selenium.__init__(self, browser)
         self._br.get("https://www.freetranslations.org/english-to-arabic-translation.html")
 
     def _translate(self, string):
