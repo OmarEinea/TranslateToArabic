@@ -1,7 +1,7 @@
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver import PhantomJS, Chrome
+from selenium.webdriver import PhantomJS, Chrome, ChromeOptions
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from microsofttranslator import Translator as MicrosoftTranslator
@@ -71,7 +71,7 @@ class Selenium:
             self._br = Chrome("./chromedriver")
         elif browser == "phantom":
             self._br = PhantomJS("./phantomjs")
-        self._br.set_page_load_timeout(15)
+        # self._br.set_page_load_timeout(25)
 
     @staticmethod
     def _insert_string(source, string):

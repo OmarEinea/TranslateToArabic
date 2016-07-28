@@ -24,7 +24,7 @@ for line in input_:
     name = user_ar
     review = translate(line[1])
     print(("Name: " + name + "\tReview: " + review)[:150])
-    output(name + '\t' + review + '\t' + line[2] + '\n')
+    output('\t'.join([name, review] + line[2:]) + '\n')
 
 print("Time: %d" % tr.execution_time())
 tr.close()
