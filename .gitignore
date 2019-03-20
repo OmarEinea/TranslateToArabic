@@ -1,25 +1,6 @@
 #
-# Igonre all interpreted python byte code
-#
-*.pyc
-
-#
-# Igonre all reviews output files and folder
-#
-*.csv
-
-#
-# Ignore PyCharm IDE project folder
+# Ignore PyCharm IDE project folder, Chrome Driver & Compiled files
 #
 .idea
-
-#
-# Ignore PhantomJS Driver and Log files
-#
-phantomjs*
-ghostdriver.log
-
-#
-# Ignore Chrome Driver
-#
+__pycache__/
 chromedriver*
