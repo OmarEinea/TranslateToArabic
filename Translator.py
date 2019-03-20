@@ -16,6 +16,7 @@ class Translator:
         # self._br.set_page_load_timeout(25)
 
     def translate(self, string):
+        if not string: return "Done"
         for i in range(3):
             try: return self._translate(string.replace("\\", ''))
             except Exception as e:
